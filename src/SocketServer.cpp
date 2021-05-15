@@ -1218,12 +1218,19 @@ void loop()
 	// See whether there is a request from the SAM.
 	// Duet WiFi 1.04 and earlier have hardware to ensure that TransferReady goes low when a transaction starts.
 	// Duet 3 Mini doesn't, so we need to see TransferReady go low and then high again. In case that happens so fast that we dn't get the interrupt, we have a timeout.
-	if (digitalRead(SamTfrReadyPin) == HIGH && (transferReadyChanged || millis() - whenLastTransactionFinished > TransferReadyTimeout))
+	if (digitalRead(SamTfrReadyPin) == HIGH)
 	{
-		transferReadyChanged = false;
-		ProcessRequest();
-		whenLastTransactionFinished = millis();
+		// now check to see if we have seen a change in the trasnfer ready pin. Note that we check again the state of the pin
+		// just in case it has gone low just after the above check. Not doing this will result in spurious read operations.
+		if ((transferReadyChanged && digitalRead(SamTfrReadyPin) == HIGH) || (millis() - whenLastTransactionFinished > TransferReadyTimeout))
+		{
+			transferReadyChanged = false;
+			ProcessRequest();
+			whenLastTransactionFinished = millis();
+		}
 	}
+	else
+		transferReadyChanged = true;
 
 	ConnectPoll();
 	Connection::PollOne();
